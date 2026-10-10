@@ -1,0 +1,32 @@
+# lefthook for this fork, derived from the repository standard's template.
+# Installation:
+#   brew install lefthook gitleaks
+#   lefthook install
+# The scripts live under scripts/hooks/ and are manager-independent.
+#
+# No formatter or compiler step: the C++ sources are upstream's and follow
+# WebKit's style, and building needs an AROS cross toolchain. Builds run in CI.
+
+commit-msg:
+  commands:
+    conventional-commits:
+      # {1} is the path to the commit message. Merge subjects are exempt.
+      run: sh scripts/hooks/check-commit-message.sh {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    staged-guards:
+      # Concluding an upstream integration commits upstream's changes, which
+      # legitimately contain build directories and WebKit test keys.
+      skip: [merge]
+      run: sh scripts/hooks/check-staged.sh
+    secrets:
+      skip: [merge]
+      run: gitleaks git --pre-commit --redact --staged --verbose
+
+pre-push:
+  parallel: false
+  commands:
+    secrets:
+      run: sh scripts/hooks/check-push-secrets.sh
