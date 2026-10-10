@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/metaneutrons/OdysseyWebBrowser/security/advisories/new
+    about: Report security problems privately, not as an issue.
+  - name: Upstream Odyssey Web Browser
+    url: https://github.com/deadwood2/OdysseyWebBrowser
+    about: Problems in unchanged upstream code.

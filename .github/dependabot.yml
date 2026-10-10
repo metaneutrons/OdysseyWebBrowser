@@ -1,0 +1,27 @@
+# From the repository standard's template. Only GitHub Actions: the fork has no
+# package manifest of its own. Source/ThirdParty/qunit/package.json is
+# upstream's vendored test harness and is updated with upstream, not here.
+#
+# Grouping is separated by update kind; major updates arrive one by one.
+# `cooldown` keeps a version withdrawn shortly after publication out of every
+# pull request. Times are UTC.
+
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:15'
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+      # semver-major-days is not permitted for github-actions. If it stands
+      # here, Dependabot rejects the ENTIRE file and not a single update runs
+      # any more, not even a security update.
+    groups:
+      github-actions-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
