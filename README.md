@@ -1,5 +1,13 @@
 # OdysseyWebBrowser
 
+> **AROS-NX integration fork.** This repository tracks
+> [deadwood2/OdysseyWebBrowser](https://github.com/deadwood2/OdysseyWebBrowser)
+> and adds AROS-NX build and release work on `main`. The branch model, the
+> merge policy and the upstream integration are described in
+> [AROS-NX.md](AROS-NX.md); see also [CONTRIBUTING.md](CONTRIBUTING.md) and
+> [SECURITY.md](SECURITY.md). The notes below are upstream's and describe the
+> upstream branches, which are mirrored here unchanged.
+
 Notes about branches:
 
 * webkit  - branch that only contains original WebKit codes at certain revisions/releases. Source changes between versions/releases are squashed into in (most cases) one commit.
