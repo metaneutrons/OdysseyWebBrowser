@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in this fork does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Security problems go through private vulnerability reporting, see
+        SECURITY.md. Bugs in unchanged upstream code also belong at
+        deadwood2/OdysseyWebBrowser.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release tag or commit SHA of this fork.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: AROS-NX build or distribution, architecture, hosted or native.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: text

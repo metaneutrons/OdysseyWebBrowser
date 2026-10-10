@@ -1,0 +1,22 @@
+# Covers only files this fork owns. Upstream sources follow WebKit's own style,
+# and an editor must not rewrite their whitespace: every such change would
+# conflict on the next upstream integration. See AROS-NX.md.
+root = true
+
+[{.github/**,scripts/**,docs/**,.editorconfig,lefthook.yml,AROS-NX.md,CONTRIBUTING.md,SECURITY.md,release-please-config.json,.release-please-manifest.json}]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 100
+
+[{.github/**,docs/**}.{yml,yaml,json}]
+indent_size = 2
+
+[{lefthook.yml,release-please-config.json,.release-please-manifest.json}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
