@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Tool versions are pinned with their release checksums, verified against an
+# independent download when they were last changed.
+env:
+  LEFTHOOK_VERSION: '2.1.17'
+  LEFTHOOK_SHA256: e3c6e271b6a77a8fac527d7cc21c1036f7605afcb6653aabe4b166913322f900
+  ACTIONLINT_VERSION: '1.7.12'
+  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+  GITLEAKS_VERSION: '8.30.1'
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+jobs:
+  repository:
+    name: Repository checks
+    runs-on: ubuntu-24.04
+    steps:
+      # The C++ tree is not needed here. Cone mode keeps the root files.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            scripts
+      - name: Install lefthook and actionlint
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          base=https://github.com
+          curl -sSfL -o lefthook.gz \
+            "$base/evilmartians/lefthook/releases/download/v${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64.gz"
+          echo "${LEFTHOOK_SHA256}  lefthook.gz" | sha256sum -c -
+          gzip -dc lefthook.gz > lefthook && chmod +x lefthook
+          curl -sSfL -o actionlint.tar.gz \
+            "$base/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Check the hook configuration
+        run: lefthook validate
+      - name: Check the workflows
+        run: actionlint -color
+      - name: Check the shell scripts
+        run: shellcheck scripts/hooks/*.sh scripts/ci/*.sh
+
+  commit-hygiene:
+    name: Commit hygiene
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: scripts
+      - name: Check title, body and own commits
+        # Title and body reach the script exclusively through env, never by
+        # interpolation into the script text: otherwise the pull request title
+        # would be a shell injection vector.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          status=0
+          cc='^((feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .+|Revert ".+")'
+          # grep works line by line, hence .* rather than [^\n]*. Anchored at
+          # the start of the line: a trailer stands on a line of its own, and a
+          # body that merely mentions the trailer must pass.
+          ban='^[[:space:]]*co-authored-by:.*(claude|anthropic)|^[[:space:]]*generated with.*claude code'
+
+          # The title becomes the subject on main and determines the version.
+          if ! printf '%s' "$PR_TITLE" | grep -Eq "$cc"; then
+            echo "::error::pull request title does not follow Conventional Commits: $PR_TITLE"
+            status=1
+          fi
+
+          if printf '%s' "$PR_BODY" | grep -Eiq "$ban"; then
+            echo "::error::the pull request body contains an AI attribution trailer."
+            status=1
+          fi
+
+          # Own commits only: an integration brings in upstream's commits,
+          # which are upstream's to word.
+          mapfile -t mirrors < <(scripts/ci/mirror-refs.sh | sort -u)
+          for sha in $(git rev-list "$HEAD_SHA" "^$BASE_SHA" --not "${mirrors[@]}"); do
+            if git log -1 --format=%B "$sha" | grep -Eiq "$ban"; then
+              echo "::error::commit $sha contains an AI attribution trailer."
+              status=1
+            fi
+            if git log -1 --format='%ae%n%ce' "$sha" | grep -Fq 'noreply@anthropic.com'; then
+              echo "::error::commit $sha has an Anthropic address as author or committer."
+              status=1
+            fi
+          done
+
+          scripts/ci/check-integration-policy.sh pr "$BASE_SHA" "$HEAD_SHA" || status=1
+
+          if [ "$status" -ne 0 ]; then
+            echo "::notice::switch trailers off for good in ~/.claude/settings.json: {\"attribution\":{\"commit\":\"\",\"pr\":\"\"}}"
+            exit 1
+          fi
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    steps:
+      # gitleaks reads history, not the working tree; blobs are fetched on
+      # demand for the commits it actually scans.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: scripts
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      # Every commit of this fork, on every run, so a finding in already
+      # merged history stays red. Upstream's history is excluded: it holds tens
+      # of thousands of WebKit test keys that are not secrets of this project.
+      - name: Scan every commit that is not upstream's
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t mirrors < <(scripts/ci/mirror-refs.sh | sort -u)
+          printf 'Excluding %s mirror branch(es); scanning %s commit(s).\n' \
+            "${#mirrors[@]}" "$(git rev-list --count HEAD --not "${mirrors[@]}")"
+          gitleaks git --redact --verbose --no-banner \
+            --log-opts="HEAD --not ${mirrors[*]}" .
+
+  merge-policy:
+    name: Merge policy on main
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: scripts
+      - name: Integrations are merge commits, everything else is squashed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: scripts/ci/check-integration-policy.sh main "$BEFORE" "$AFTER"
+
+  # The only required check in the ruleset.
+  ci-success:
+    name: CI Success
+    if: always()
+    needs: [repository, commit-hygiene, secrets, merge-policy]
+    runs-on: ubuntu-24.04
+    steps:
+      # "skipped" is permitted: commit-hygiene runs only on pull requests and
+      # merge-policy only on pushes to main.
+      - name: Every preceding job must have succeeded or been skipped
+        run: |
+          set -euo pipefail
+          printf '%s\n' '${{ toJSON(needs) }}' |
+            jq -e 'all(.[]; .result == "success" or .result == "skipped")'
