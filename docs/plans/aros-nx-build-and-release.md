@@ -59,8 +59,9 @@ Decisions, settled or still open before the milestone that needs them:
   toolchain qualification covers freestanding C and C++ objects, not a C++ code
   base of WebKit's size, so M1 is also the first qualification of the toolchain
   on such a code base.
-- **D2 SDK and libraries (M1), open.** Measured on 10 October 2026, nothing
-  published today supplies what the build links against:
+- **D2 SDK and libraries (M1), decided 11 October 2026: published by AROS-NX.**
+  Measured on 10 October 2026, nothing published then supplied what the build
+  links against:
   - The toolchain archive holds the compiler, libc++, libc++abi, libunwind and
     compiler-rt (3 049 files, no AROS headers or link libraries).
   - aros-tools documents that it has no standalone SDK installer: the SDK is
@@ -73,11 +74,17 @@ Decisions, settled or still open before the milestone that needs them:
     HarfBuzz, ICU, libgcrypt, libpsl, libxml2, libxslt, nghttp2, OpenJPEG,
     OpenSSL, SQLite, WOFF2 and FFmpeg. AROS-NX contains no `contrib`.
 
-  The decision therefore has two parts: **D2a**, where the AROS SDK for
-  `pc-x86_64` comes from, and **D2b**, where the third-party libraries come
-  from. Either AROS-NX (or a companion repository) publishes versioned,
-  checksummed and attested artefacts that this repository pins, or this
-  repository's CI builds them from pinned AROS-NX and `contrib` commits.
+  The decision has two parts, **D2a** for the AROS SDK of `pc-x86_64` and
+  **D2b** for the third-party libraries. Both come from versioned, checksummed
+  and attested artefacts that AROS-NX publishes and this repository pins, like
+  the compiler. This repository does not build AROS-NX or `contrib` itself.
+  The alternative, building both here from pinned commits, was rejected: it
+  places SDK production in the wrong repository and makes every uncached run
+  build half an operating system.
+
+  M1 waits for AROS-NX's next SDK and toolchain release. Whether that release
+  already contains the libraries of D2b is not yet confirmed; if not, D2b
+  remains a separate AROS-NX deliverable that M1 also waits for.
 - **D3 Runner (M1), decided 10 October 2026: measure on GitHub-hosted runners
   first.** Hosted runners for public repositories have 4 vCPU and 16 GB RAM;
   upstream's figures forecast well over an hour per build. The choice between
@@ -97,7 +104,8 @@ Decisions, settled or still open before the milestone that needs them:
 ### M1: Reproducible x86_64 build in CI
 
 Execution: pending
-Dependencies: D2a, D2b; the SDK and library artefacts they select
+Dependencies: AROS-NX's next SDK and toolchain release (D2a), the AROS-NX
+`contrib` library artefacts (D2b)
 
 - M1-A1: A workflow builds Odyssey for x86_64-aros from a clean checkout of a
   pull request head, with toolchain, SDK and libraries fetched by exact version
@@ -185,3 +193,5 @@ independently.
   hosted runners first). D2 split into D2a and D2b after the survey showed that
   no published artefact supplies the AROS SDK or the `contrib` libraries; M1's
   dependencies and M1-A1 changed accordingly.
+- 11 October 2026: D2 decided, SDK and libraries are published by AROS-NX
+  and pinned here; M1 waits for AROS-NX's next SDK and toolchain release.
