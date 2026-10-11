@@ -69,10 +69,18 @@ Decisions, settled or still open before the milestone that needs them:
     and a compiler prefix alone is not a complete application SDK. aros-tools
     itself is distributed as source only.
   - AROS-NX publishes no releases.
-  - Odyssey additionally needs about twenty libraries that upstream takes from
-    the AROS `contrib` repository, among them cURL, Cairo, Fontconfig,
-    HarfBuzz, ICU, libgcrypt, libpsl, libxml2, libxslt, nghttp2, OpenJPEG,
-    OpenSSL, SQLite, WOFF2 and FFmpeg. AROS-NX contains no `contrib`.
+  - The AROS build (`rebuild.sh` configures `PORT=MUI`) links 13 static
+    libraries from the SDK directory, set in `Source/cmake/OptionsMUI.cmake`
+    and `Source/WebCore/PlatformMUI.cmake`. Four come from the AROS tree
+    itself, which AROS-NX carries like vanilla AROS: zlib, libpng, libjpeg and
+    FreeType 2 (HarfBuzz is mapped to `libamiga.a`). Nine come from the
+    separate AROS `contrib` repository: ICU, Cairo, Fontconfig, libxml2,
+    libxslt, SQLite, cURL, OpenSSL and libpsl. The AROS tree only builds ICU as
+    a host tool.
+  - `contrib` is not part of the AROS tree, in vanilla AROS as in AROS-NX. The
+    AROS build inherited by AROS-NX builds it with `make contrib` from a
+    separate checkout; the staged nightly pipeline in `scripts/azure/` has a
+    Contrib stage for this that produces a `contrib-<name>` artefact.
 
   The decision has two parts, **D2a** for the AROS SDK of `pc-x86_64` and
   **D2b** for the third-party libraries. Both come from versioned, checksummed
@@ -83,8 +91,9 @@ Decisions, settled or still open before the milestone that needs them:
   build half an operating system.
 
   M1 waits for AROS-NX's next SDK and toolchain release. Whether that release
-  already contains the libraries of D2b is not yet confirmed; if not, D2b
-  remains a separate AROS-NX deliverable that M1 also waits for.
+  runs the `contrib` stage and so contains the nine libraries of D2b, and from
+  which `contrib` commit, is not yet confirmed; if not, D2b remains a separate
+  AROS-NX deliverable that M1 also waits for.
 - **D3 Runner (M1), decided 10 October 2026: measure on GitHub-hosted runners
   first.** Hosted runners for public repositories have 4 vCPU and 16 GB RAM;
   upstream's figures forecast well over an hour per build. The choice between
@@ -195,3 +204,7 @@ independently.
   dependencies and M1-A1 changed accordingly.
 - 11 October 2026: D2 decided, SDK and libraries are published by AROS-NX
   and pinned here; M1 waits for AROS-NX's next SDK and toolchain release.
+- 11 October 2026: correction of the library survey. The earlier list of about
+  twenty libraries, including FFmpeg, libgcrypt, libtasn1, nghttp2, OpenJPEG
+  and WOFF2, was read from the MorphOS options file; the AROS build uses the
+  MUI port and needs 13 libraries, nine of them from `contrib`.
